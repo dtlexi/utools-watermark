@@ -2,19 +2,9 @@
   <div id="tab-container">
     <Row>
       <Col span="24">
-        <Upload
-          multiple
-          type="drag"
-          action=""
-          accept="image"
-          :before-upload="handleBeforeUpload"
-        >
+        <Upload multiple type="drag" action accept="image" :before-upload="handleBeforeUpload">
           <div style="padding: 20px 0">
-            <Icon
-              type="ios-cloud-upload"
-              size="52"
-              style="color: #3399ff"
-            ></Icon>
+            <Icon type="ios-cloud-upload" size="52" style="color: #3399ff"></Icon>
             <p>上传图片</p>
           </div>
         </Upload>
@@ -24,13 +14,10 @@
       <Col span="8">
         <Form :label-width="80">
           <FormItem label="水印文本">
-            <Input
-              v-model="water.text"
-              placeholder="water mark text..."
-            ></Input>
+            <Input v-model="water.text" placeholder="water mark text..."></Input>
           </FormItem>
           <FormItem label="位置">
-            <Select v-model="model1" style="width: 200px">
+            <Select v-model="water.type" style="width: 200px">
               <Option :value="1">左上</Option>
               <Option :value="2">左中</Option>
               <Option :value="3">左下</Option>
@@ -44,7 +31,7 @@
             </Select>
           </FormItem>
           <FormItem label="字体大小">
-            <Slider v-model="water.fontSize"></Slider>
+            <Slider v-model="water.fontSize" :max="100" :min="10"></Slider>
           </FormItem>
 
           <FormItem label="字体颜色">
@@ -52,16 +39,19 @@
           </FormItem>
 
           <FormItem label="透明度">
-            <Slider v-model="water.globalAlpha"></Slider>
+            <Slider v-model="water.globalAlpha" :max="100" :min="10"></Slider>
+          </FormItem>
+
+          <FormItem label="上下间距">
+            <Slider v-model="water.horizontalSpacing" :max="100" :min="0"></Slider>
+          </FormItem>
+
+          <FormItem label="左右间距">
+            <Slider v-model="water.portraitSpacing" :max="100" :min="0"></Slider>
           </FormItem>
 
           <FormItem label="旋转角度">
-            <Slider
-              v-model="water.position.route"
-              :max="180"
-              :min="-180"
-              :step="5"
-            ></Slider>
+            <Slider v-model="water.position.route" :max="180" :min="-180" :step="5"></Slider>
           </FormItem>
         </Form>
       </Col>
@@ -76,7 +66,7 @@
 </template>
 
 <script>
-import { fileToImage } from "@/utils/imageUtil";
+import { fileToImage, getTextWith } from "@/utils/imageUtil";
 export default {
   data() {
     return {
@@ -91,19 +81,22 @@ export default {
         text: "@renjilin.online",
         globalAlpha: 100,
         color: "#000000",
+        type: undefined,
+        portraitSpacing: 10,
+        horizontalSpacing: 10,
         position: {
           textAlign: "left",
           textBaseline: "top",
           x: 0,
           y: 0,
-          route: 0,
-        },
+          route: 0
+        }
       },
       canvasWidth: 500,
-      canvasHeight: 200,
+      canvasHeight: 200
     };
   },
-  mounted: function () {
+  mounted: function() {
     this.canvas = document.getElementById("imageCanvas");
     this.ctx = this.canvas.getContext("2d");
 
@@ -112,18 +105,21 @@ export default {
   },
   methods: {
     handleBeforeUpload(file) {
-      fileToImage(file).then((image) => {
+      fileToImage(file).then(image => {
         this.sourceImage = image;
+
+        const width = image.width;
+        const height = image.height;
+        const proportion = width / height;
+        this.canvasHeight = parseInt(this.canvasWidth / proportion);
+
+        this.initCanvas();
         this.renderImage(image);
+        this.renderText();
       });
       return false;
     },
-    renderImage(image) {
-      const width = image.width;
-      const height = image.height;
-      const proportion = width / height;
-      this.canvasHeight = parseInt(this.canvasWidth / proportion);
-
+    initCanvas() {
       var imageWidthAttr = document.createAttribute("width");
       imageWidthAttr.nodeValue = this.canvasWidth;
       var imageHeightAttr = document.createAttribute("height");
@@ -137,13 +133,12 @@ export default {
       txtHeightAttr.nodeValue = this.canvasHeight;
       this.txtCanvas.setAttributeNode(txtWidthAttr);
       this.txtCanvas.setAttributeNode(txtHeightAttr);
-
+    },
+    renderImage(image) {
       this.ctx.drawImage(image, 0, 0, this.canvasWidth, this.canvasHeight);
-
-      this.renderText();
     },
     renderText() {
-      this.txtCtx.clearRect(0, 0, this.canvasWidth, this.canvasWidth);
+      this.txtCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
 
       this.txtCtx.font = this.font;
       this.txtCtx.fillStyle = this.water.color;
@@ -155,13 +150,35 @@ export default {
 
       const position = { ...this.water.position };
 
-      var ox = this.txtCanvas.width / 2;
-      var oy = this.txtCanvas.height / 2;
-      this.txtCtx.rotate((Math.PI / 180) * position.route); // 弧度 = (Math.PI/180)*角度
-      this.txtCtx.fillText(this.water.text, 0, 0);
+      // 旋转
+      // var ox = this.txtCanvas.width / 2;
+      // var oy = this.txtCanvas.height / 2;
+      // this.txtCtx.rotate((Math.PI / 180) * position.route); // 弧度 = (Math.PI/180)*角度
+      // this.txtCtx.fillText(this.water.text, 0, 0);
+      // this.txtCtx.rotate((Math.PI / 180) * position.route * -1);
 
+      // 平铺
+      const txtWidth =
+        getTextWith(this.water.text, this.font) + this.water.portraitSpacing;
+      const txtHeight = this.water.fontSize + this.water.horizontalSpacing;
+
+      let posY = this.canvasHeight * -1;
+      this.txtCtx.translate(this.canvasWidth / 2, this.canvasHeight / 2);
+      this.txtCtx.rotate((Math.PI / 180) * position.route);
+      while (posY < this.canvasHeight) {
+        let posX = this.canvasWidth * -1;
+        while (posX < this.canvasWidth) {
+          this.txtCtx.fillText(this.water.text, posX, posY);
+          posX += txtWidth;
+        }
+        posY += txtHeight / 2;
+      }
       this.txtCtx.rotate((Math.PI / 180) * position.route * -1);
-    },
+      this.txtCtx.translate(
+        (-1 * this.canvasWidth) / 2,
+        (-1 * this.canvasHeight) / 2
+      );
+    }
   },
   watch: {
     water: {
@@ -169,14 +186,14 @@ export default {
         this.renderText();
       },
       deep: true,
-      immediate: false,
-    },
+      immediate: false
+    }
   },
   computed: {
     font() {
-      return this.water.fontSize + "px " + this.water.fontType;
-    },
-  },
+      return this.water.fontSize / 2 + "px " + this.water.fontType;
+    }
+  }
 };
 </script>
 
@@ -190,5 +207,9 @@ export default {
 
 .canvas {
   position: absolute;
+}
+
+.ivu-select {
+  width: 100% !important;
 }
 </style>
