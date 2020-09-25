@@ -54,7 +54,10 @@ export default {
 </script>
 
 <style>
-#app-container{
-  padding:20px
+#app-container {
+  padding: 20px;
+}
+.ivu-form-item {
+  padding: 0px 7px;
 }
 </style>
