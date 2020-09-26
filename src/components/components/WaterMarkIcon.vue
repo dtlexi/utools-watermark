@@ -24,10 +24,22 @@
       <Col span="8">
         <Form :label-width="80">
           <FormItem label="水印文本">
-            <Input v-model="form.text" placeholder="water mark text..."></Input>
+            <Upload
+              ref="upload"
+              :show-upload-list="false"
+              :format="['jpg', 'jpeg', 'png']"
+              :max-size="2048"
+              type="drag"
+              action=""
+              style="display: inline-block; width: 30px"
+            >
+              <div style="width: 30px; height: 30px; line-height: 30px">
+                <Icon type="md-images" size="15"></Icon>
+              </div>
+            </Upload>
           </FormItem>
           <FormItem label="位置">
-            <Select v-model="form.type" style="width: 200px">
+            <!-- <Select v-model="form.type" style="width: 200px">
               <Option :value="1">左上</Option>
               <Option :value="2">左中</Option>
               <Option :value="3">左下</Option>
@@ -40,7 +52,15 @@
               <Option :value="8">中间</Option>
               <Option :value="9">中下</Option>
               <Option :value="10">铺满</Option>
-            </Select>
+            </Select> -->
+
+<span class="span-radio">1</span>
+<span class="span-radio">1</span>
+<span>1</span>
+<span>1</span>
+<span>1</span>
+<span>1</span>
+            
           </FormItem>
           <FormItem label="字体大小">
             <Slider v-model="form.fontSize" :max="100" :min="10"></Slider>

@@ -65,7 +65,7 @@ export default {
 
 <style>
 .more-contain {
-  overflow: hidden;
+  overflow-y: hidden;
 }
 
 .div-more {
