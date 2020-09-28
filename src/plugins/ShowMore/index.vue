@@ -31,6 +31,7 @@ export default {
     return {
       moreStyle: {
         maxHeight: undefined,
+        overflow: "hidden",
       },
       acturalHeight: undefined,
       showMore: true,
@@ -42,6 +43,7 @@ export default {
       this.moreStyle.maxHeight = this.maxHeight + "px";
     } else {
       this.showMore = false;
+      this.moreStyle.overflow = "visible";
     }
   },
   methods: {
@@ -51,7 +53,8 @@ export default {
       } else {
         this.moreStyle.maxHeight = this.acturalHeight + "px";
       }
-      this.showMore=false;
+      this.showMore = false;
+      this.moreStyle.overflow = "visible";
     },
   },
   props: {
@@ -64,9 +67,9 @@ export default {
 </script>
 
 <style>
-.more-contain {
+/* .more-contain {
   overflow-y: hidden;
-}
+} */
 
 .div-more {
   position: absolute;

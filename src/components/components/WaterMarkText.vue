@@ -6,6 +6,7 @@
           multiple
           type="drag"
           action
+          :format="['jpg', 'jpeg', 'png']"
           accept="image"
           :before-upload="handleBeforeUpload"
         >
@@ -87,8 +88,8 @@
           ref="divCanvas"
           :style="{ height: canvasHeight + 'px' }"
         >
-          <canvas id="imageCanvas" class="canvas"></canvas>
-          <canvas id="textCanvas" class="canvas"></canvas>
+          <canvas ref="imageCanvas" class="canvas"></canvas>
+          <canvas ref="textCanvas" class="canvas"></canvas>
         </div>
       </Col>
     </Row>
@@ -122,23 +123,37 @@ export default {
     };
   },
   mounted: function () {
-    this.canvas = document.getElementById("imageCanvas");
+    this.canvas = this.$refs.imageCanvas;
     this.ctx = this.canvas.getContext("2d");
-
-    this.txtCanvas = document.getElementById("textCanvas");
+    this.txtCanvas = this.$refs.textCanvas;
     this.txtCtx = this.txtCanvas.getContext("2d");
 
     this.canvasWidth = this.$refs.divCanvas.clientWidth - 50;
-    window.onresize = this.handleResize;
+
+    console.log(this.$refs.divCanvas.clientWidth);
+
+    if (utools) {
+      utools.onPluginEnter(({ code, type, payload, optional }) => {
+        console.log("用户进入插件", code, type, payload);
+        if (this.sourceImage) {
+          this.initCanvas(this.sourceImage);
+          this.renderImage(this.sourceImage);
+          this.renderText();
+        }
+      });
+    }
   },
   methods: {
     handleBeforeUpload(file) {
       fileToImage(file).then((image) => {
         this.sourceImage = image;
-
         this.initCanvas(image);
         this.renderImage(image);
         this.renderText();
+
+        if (utools) {
+          utools.showMainWindow();
+        }
       });
       return false;
     },
@@ -190,10 +205,10 @@ export default {
         this.position.center.y * -1
       );
     },
-    handleResize() {
+    reRender() {
       if (this.sourceImage) {
         this.canvasWidth = this.$refs.divCanvas.clientWidth - 50;
-
+        console.log(this.canvasWidth);
         this.initCanvas(this.sourceImage);
         this.renderImage(this.sourceImage);
         this.renderText();
@@ -207,6 +222,12 @@ export default {
       },
       deep: true,
       immediate: false,
+    },
+    canvasWidth: function (val) {
+      console.log("canvasWidth" + val);
+    },
+    canvasHeight: function (val) {
+      console.log("canvasHeight" + val);
     },
   },
   computed: {

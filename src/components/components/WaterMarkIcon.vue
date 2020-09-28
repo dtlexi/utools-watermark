@@ -5,6 +5,7 @@
         <Upload
           multiple
           type="drag"
+          :format="['jpg', 'jpeg', 'png']"
           action
           accept="image"
           :before-upload="handleBeforeUpload"
@@ -23,7 +24,7 @@
     <Row>
       <Col span="8">
         <Form :label-width="80">
-          <FormItem label="水印文本">
+          <FormItem label="水印图片">
             <Upload
               ref="upload"
               :show-upload-list="false"
@@ -31,15 +32,18 @@
               :max-size="2048"
               type="drag"
               action=""
-              style="display: inline-block; width: 30px"
+              style="display: inline-block; width: 60px"
+              :before-upload="handleBeforeIconUpload"
             >
-              <div style="width: 30px; height: 30px; line-height: 30px">
-                <Icon type="md-images" size="15"></Icon>
+              <div style="width: 30px; height: 60px; line-height: 60px">
+                <Icon type="md-images" size="60"></Icon>
               </div>
             </Upload>
+
+            <img style="margin-left: 20px" height="60" ref="iconPrev" />
           </FormItem>
           <FormItem label="位置">
-            <!-- <Select v-model="form.type" style="width: 200px">
+            <Select v-model="form.type" style="width: 200px">
               <Option :value="1">左上</Option>
               <Option :value="2">左中</Option>
               <Option :value="3">左下</Option>
@@ -52,22 +56,15 @@
               <Option :value="8">中间</Option>
               <Option :value="9">中下</Option>
               <Option :value="10">铺满</Option>
-            </Select> -->
-
-<span class="span-radio">1</span>
-<span class="span-radio">1</span>
-<span>1</span>
-<span>1</span>
-<span>1</span>
-<span>1</span>
-            
+            </Select>
           </FormItem>
-          <FormItem label="字体大小">
-            <Slider v-model="form.fontSize" :max="100" :min="10"></Slider>
-          </FormItem>
-
-          <FormItem label="字体颜色">
-            <ColorPicker v-model="form.color" />
+          <FormItem label="水印大小">
+            <Slider
+              v-model="form.iconSize"
+              :max="200"
+              :min="20"
+              :step="5"
+            ></Slider>
           </FormItem>
 
           <FormItem label="透明度">
@@ -107,8 +104,8 @@
           ref="divCanvas"
           :style="{ height: canvasHeight + 'px' }"
         >
-          <canvas id="imageCanvas" class="canvas"></canvas>
-          <canvas id="textCanvas" class="canvas"></canvas>
+          <canvas ref="imageCanvas" class="canvas"></canvas>
+          <canvas ref="iconCanvas" class="canvas"></canvas>
         </div>
       </Col>
     </Row>
@@ -123,42 +120,54 @@ export default {
     return {
       canvas: undefined,
       ctx: undefined,
-      txtCanvas: undefined,
-      txtCtx: undefined,
+      iconCanvas: undefined,
+      iconCtx: undefined,
       sourceImage: undefined,
       form: {
-        fontSize: 50,
-        fontType: "Arial",
-        text: "@renjilin.online",
+        iconSize: 50,
         globalAlpha: 100,
-        color: "#FFFFFF",
         type: 1,
-        portraitSpacing: 0,
-        horizontalSpacing: 0,
+        portraitSpacing: 20,
+        horizontalSpacing: 20,
         rotateAngle: 0,
+        icon: undefined,
       },
       canvasWidth: 500,
       canvasHeight: 200,
     };
   },
   mounted: function () {
-    this.canvas = document.getElementById("imageCanvas");
+    this.canvas = this.$refs.imageCanvas;
     this.ctx = this.canvas.getContext("2d");
 
-    this.txtCanvas = document.getElementById("textCanvas");
-    this.txtCtx = this.txtCanvas.getContext("2d");
+    this.iconCanvas = this.$refs.iconCanvas;
+    this.iconCtx = this.iconCanvas.getContext("2d");
 
     this.canvasWidth = this.$refs.divCanvas.clientWidth - 50;
-    window.onresize = this.handleResize;
   },
   methods: {
     handleBeforeUpload(file) {
       fileToImage(file).then((image) => {
         this.sourceImage = image;
-
         this.initCanvas(image);
         this.renderImage(image);
-        this.renderText();
+        this.renderIcon();
+
+        if (utools) {
+          utools.showMainWindow();
+        }
+      });
+      return false;
+    },
+    handleBeforeIconUpload(file) {
+      fileToImage(file).then((image) => {
+        this.form.icon = image;
+
+        this.$refs.iconPrev.src = image.src;
+
+        if (utools) {
+          utools.showMainWindow();
+        }
       });
       return false;
     },
@@ -175,64 +184,63 @@ export default {
       this.canvas.setAttributeNode(imageWidthAttr);
       this.canvas.setAttributeNode(imageHeightAttr);
 
-      var txtWidthAttr = document.createAttribute("width");
-      txtWidthAttr.nodeValue = this.canvasWidth;
-      var txtHeightAttr = document.createAttribute("height");
-      txtHeightAttr.nodeValue = this.canvasHeight;
-      this.txtCanvas.setAttributeNode(txtWidthAttr);
-      this.txtCanvas.setAttributeNode(txtHeightAttr);
+      var iconWidthAttr = document.createAttribute("width");
+      iconWidthAttr.nodeValue = this.canvasWidth;
+      var iconHeightAttr = document.createAttribute("height");
+      iconHeightAttr.nodeValue = this.canvasHeight;
+      this.iconCanvas.setAttributeNode(iconWidthAttr);
+      this.iconCanvas.setAttributeNode(iconHeightAttr);
     },
     renderImage(image) {
       this.ctx.drawImage(image, 0, 0, this.canvasWidth, this.canvasHeight);
     },
-    renderText() {
-      this.txtCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+    renderIcon() {
+      this.iconCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
 
-      this.txtCtx.font = this.font;
-      this.txtCtx.fillStyle = this.form.color;
+      if (this.form.icon) {
+        this.iconCtx.globalAlpha = this.form.globalAlpha / 100;
 
-      this.txtCtx.globalAlpha = this.form.globalAlpha / 100;
-      // 设置垂直对齐方式
-      this.txtCtx.textAlign = "left";
-      this.txtCtx.textBaseline = "top";
+        this.iconCtx.translate(this.position.center.x, this.position.center.y);
+        this.iconCtx.rotate((Math.PI / 180) * this.form.rotateAngle);
 
-      this.txtCtx.translate(this.position.center.x, this.position.center.y);
-      this.txtCtx.rotate((Math.PI / 180) * this.form.rotateAngle);
+        for (let index = 0; index < this.position.points.length; index++) {
+          const position = this.position.points[index];
+          this.iconCtx.drawImage(
+            this.form.icon,
+            position.x,
+            position.y,
+            this.iconSize.width,
+            this.iconSize.height
+          );
+        }
 
-      for (let index = 0; index < this.position.points.length; index++) {
-        const position = this.position.points[index];
-        this.txtCtx.fillText(this.form.text, position.x, position.y);
+        this.iconCtx.rotate((Math.PI / 180) * this.form.rotateAngle * -1);
+        this.iconCtx.translate(
+          this.position.center.x * -1,
+          this.position.center.y * -1
+        );
       }
-
-      this.txtCtx.rotate((Math.PI / 180) * this.form.rotateAngle * -1);
-      this.txtCtx.translate(
-        this.position.center.x * -1,
-        this.position.center.y * -1
-      );
     },
-    handleResize() {
+    
+    reRender() {
       if (this.sourceImage) {
         this.canvasWidth = this.$refs.divCanvas.clientWidth - 50;
-
         this.initCanvas(this.sourceImage);
         this.renderImage(this.sourceImage);
-        this.renderText();
+        this.renderIcon();
       }
     },
   },
   watch: {
     form: {
       handler(val) {
-        this.renderText();
+        this.renderIcon();
       },
       deep: true,
       immediate: false,
     },
   },
   computed: {
-    font() {
-      return this.form.fontSize / 2 + "px " + this.form.fontType;
-    },
     position() {
       let points = [];
       let center = undefined;
@@ -253,7 +261,7 @@ export default {
         center = { x: 0, y: this.canvasHeight / 2 };
         let pos = {
           x: this.form.portraitSpacing,
-          y: this.form.horizontalSpacing - this.form.fontSize / 4,
+          y: this.form.horizontalSpacing - this.iconSize.height / 2,
         };
         points.push(pos);
       }
@@ -264,7 +272,7 @@ export default {
 
         let pos = {
           x: this.form.portraitSpacing,
-          y: (this.form.horizontalSpacing + this.form.fontSize / 2) * -1,
+          y: (this.form.horizontalSpacing + this.iconSize.height) * -1,
         };
         points.push(pos);
       }
@@ -274,7 +282,7 @@ export default {
         center = { x: this.canvasWidth, y: 0 };
 
         let pos = {
-          x: (this.form.portraitSpacing + this.txtWidth) * -1,
+          x: (this.form.portraitSpacing + this.iconSize.width) * -1,
           y: this.form.horizontalSpacing,
         };
         points.push(pos);
@@ -285,8 +293,8 @@ export default {
         center = { x: this.canvasWidth, y: this.canvasHeight / 2 };
 
         let pos = {
-          x: (this.form.portraitSpacing + this.txtWidth) * -1,
-          y: this.form.horizontalSpacing - this.form.fontSize / 4,
+          x: (this.form.portraitSpacing + this.iconSize.width) * -1,
+          y: this.form.horizontalSpacing - this.iconSize.height / 2,
         };
         points.push(pos);
       }
@@ -296,8 +304,8 @@ export default {
         center = { x: this.canvasWidth, y: this.canvasHeight };
 
         let pos = {
-          x: (this.form.portraitSpacing + this.txtWidth) * -1,
-          y: (this.form.horizontalSpacing + this.form.fontSize / 2) * -1,
+          x: (this.form.portraitSpacing + this.iconSize.width) * -1,
+          y: (this.form.horizontalSpacing + this.iconSize.height) * -1,
         };
         points.push(pos);
       }
@@ -307,7 +315,7 @@ export default {
         center = { x: this.canvasWidth / 2, y: 0 };
 
         let pos = {
-          x: this.form.portraitSpacing - this.txtWidth / 2,
+          x: this.form.portraitSpacing - this.iconSize.width / 2,
           y: this.form.horizontalSpacing,
         };
 
@@ -319,8 +327,8 @@ export default {
         center = { x: this.canvasWidth / 2, y: this.canvasHeight / 2 };
 
         let pos = {
-          x: this.form.portraitSpacing - this.txtWidth / 2,
-          y: this.form.horizontalSpacing - this.form.fontSize / 4,
+          x: this.form.portraitSpacing - this.iconSize.width / 2,
+          y: this.form.horizontalSpacing - this.iconSize.height / 2,
         };
         points.push(pos);
       }
@@ -330,8 +338,8 @@ export default {
         center = { x: this.canvasWidth / 2, y: this.canvasHeight };
 
         let pos = {
-          x: this.form.portraitSpacing - this.txtWidth / 2,
-          y: (this.form.horizontalSpacing + this.form.fontSize / 2) * -1,
+          x: this.form.portraitSpacing - this.iconSize.width / 2,
+          y: (this.form.horizontalSpacing + this.iconSize.height) * -1,
         };
 
         points.push(pos);
@@ -340,8 +348,8 @@ export default {
       // all
       if (this.form.type == 10) {
         center = { x: this.canvasWidth / 2, y: this.canvasHeight / 2 };
-        const txtWidth = this.txtWidth + this.form.portraitSpacing;
-        const txtHeight = this.form.fontSize + this.form.horizontalSpacing;
+        const iconWidth = this.iconSize.width + this.form.portraitSpacing;
+        const iconHeight = this.iconSize.height + this.form.horizontalSpacing;
 
         var length =
           Math.sqrt(
@@ -353,9 +361,9 @@ export default {
           let posX = length * -1;
           while (posX < length) {
             points.push({ x: posX, y: posY });
-            posX += txtWidth;
+            posX += iconWidth;
           }
-          posY += txtHeight / 2;
+          posY += iconHeight;
         }
       }
 
@@ -364,8 +372,26 @@ export default {
         center: center,
       };
     },
-    txtWidth() {
-      return getTextWith(this.form.text, this.font);
+    iconSize() {
+      let size = {
+        width: this.form.iconSize,
+        height: this.form.iconSize,
+      };
+
+      const icon = this.form.icon;
+      if (!icon) {
+        return false;
+      }
+
+      if (icon.width > icon.height) {
+        const percent = icon.width / icon.height;
+        size.height = size.width / percent;
+      } else {
+        const percent = icon.height / icon.width;
+        size.width = size.height / percent;
+      }
+
+      return size;
     },
   },
   components: { ShowMore },
