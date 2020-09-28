@@ -22,12 +22,6 @@ export default {
   },
   mounted() {
     window.onresize = this.resize;
-
-    var filse=utools.showOpenDialog({
-      filters: [{ name: "plugin.json", extensions: ["json"] }],
-      properties: ["openFile"],
-    });
-    console.log(filse)
   },
   methods: {
     resize() {
