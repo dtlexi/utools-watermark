@@ -55,6 +55,7 @@ export default {
       }
       this.showMore = false;
       this.moreStyle.overflow = "visible";
+      this.$emit("expandSuccess");
     },
   },
   props: {

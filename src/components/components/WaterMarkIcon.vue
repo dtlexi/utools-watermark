@@ -32,15 +32,15 @@
               :max-size="2048"
               type="drag"
               action=""
-              style="display: inline-block; width: 60px"
+              style="display: inline-block; width: 30px; margin-right: 20px"
               :before-upload="handleBeforeIconUpload"
             >
-              <div style="width: 30px; height: 60px; line-height: 60px">
-                <Icon type="md-images" size="60"></Icon>
+              <div style="width: 30px; height: 30px; line-height: 35px">
+                <Icon type="md-images" size="20"></Icon>
               </div>
             </Upload>
-
-            <img style="margin-left: 20px" height="60" ref="iconPrev" />
+            <br />
+            <img v-show="form.icon" height="60" ref="iconPrev" />
           </FormItem>
           <FormItem label="位置">
             <Select v-model="form.type" style="width: 200px">
@@ -70,7 +70,7 @@
           <FormItem label="透明度">
             <Slider v-model="form.globalAlpha" :max="100" :min="10"></Slider>
           </FormItem>
-          <show-more :max-height="0">
+          <show-more :max-height="0" @expandSuccess="handleExpandSuccess">
             <FormItem label="上下间距">
               <Slider
                 v-model="form.horizontalSpacing"
@@ -96,6 +96,10 @@
               ></Slider>
             </FormItem>
           </show-more>
+
+          <div :style="exportButtonStyle">
+            <Button type="primary" @click="handleExportImage">导出图片</Button>
+          </div>
         </Form>
       </Col>
       <Col span="16">
@@ -109,11 +113,17 @@
         </div>
       </Col>
     </Row>
+
+    <!-- <Spin fix v-if="showSpin">
+      <Icon type="ios-loading" size="18"></Icon>
+      <div>Loading</div>
+    </Spin> -->
   </div>
 </template>
 
 <script>
-import { fileToImage, getTextWith } from "@/utils/imageUtil";
+import { fileToImage, getTextWith, canvas2Image } from "@/utils/imageUtil";
+import { downLoadImage } from "@/utils/fileUtil";
 import ShowMore from "@/plugins/ShowMore";
 export default {
   data() {
@@ -123,6 +133,10 @@ export default {
       iconCanvas: undefined,
       iconCtx: undefined,
       sourceImage: undefined,
+      sourceFile: {
+        fileName: undefined,
+        fileType: undefined,
+      },
       form: {
         iconSize: 50,
         globalAlpha: 100,
@@ -134,6 +148,13 @@ export default {
       },
       canvasWidth: 500,
       canvasHeight: 200,
+      exportButtonStyle: {
+        width: "100%",
+        textAlign: "center",
+        paddingTop: "10px",
+      },
+      spinTxt: "生成图片中...",
+      showSpin: false,
     };
   },
   mounted: function () {
@@ -149,13 +170,16 @@ export default {
     handleBeforeUpload(file) {
       fileToImage(file).then((image) => {
         this.sourceImage = image;
+        this.sourceFile.fileName = file.name;
+        this.sourceFile.fileType = file.type;
+
         this.initCanvas(image);
         this.renderImage(image);
         this.renderIcon();
 
-        if (utools) {
+        try {
           utools.showMainWindow();
-        }
+        } catch (error) {}
       });
       return false;
     },
@@ -165,9 +189,9 @@ export default {
 
         this.$refs.iconPrev.src = image.src;
 
-        if (utools) {
+        try {
           utools.showMainWindow();
-        }
+        } catch (error) {}
       });
       return false;
     },
@@ -221,7 +245,10 @@ export default {
         );
       }
     },
-    
+    handleExpandSuccess() {
+      this.exportButtonStyle.position = "unset";
+      this.exportButtonStyle.paddingTop = "unset";
+    },
     reRender() {
       if (this.sourceImage) {
         this.canvasWidth = this.$refs.divCanvas.clientWidth - 50;
@@ -229,6 +256,89 @@ export default {
         this.renderImage(this.sourceImage);
         this.renderIcon();
       }
+    },
+    handleExportImage() {
+      try {
+        if (!this.sourceImage) {
+          throw "请选择需要添加水印的图片";
+        }
+
+        if (!this.form.icon) {
+          throw "请选择需要添加的水印图片";
+        }
+        this.$spin.show({
+          render: (h) => {
+            return h("div", [
+              h("Icon", {
+                class: "demo-spin-icon-load",
+                props: {
+                  type: "ios-loading",
+                  size: 18,
+                },
+              }),
+              h("div", "生成图片中..."),
+            ]);
+          },
+        });
+
+        setTimeout(() => {
+          this.renderExportImage();
+        }, 800);
+      } catch (error) {
+        this.$notice.error({
+          title: "导出失败",
+          desc: error,
+        });
+      } finally {
+        this.$spin.hide();
+      }
+    },
+    renderExportImage() {
+      const imageWidth = this.sourceImage.width;
+      const imageHeight = this.sourceImage.height;
+
+      let canvas = document.createElement("canvas");
+      var imageWidthAttr = document.createAttribute("width");
+      imageWidthAttr.nodeValue = imageWidth;
+
+      var imageHeightAttr = document.createAttribute("height");
+      imageHeightAttr.nodeValue = imageHeight;
+      canvas.setAttributeNode(imageWidthAttr);
+      canvas.setAttributeNode(imageHeightAttr);
+
+      let ctx = canvas.getContext("2d");
+      
+      ctx.drawImage(this.sourceImage, 0, 0, imageWidth, imageHeight);
+
+      const proportion = imageWidth / this.canvasWidth;
+
+      ctx.globalAlpha = this.form.globalAlpha / 100;
+
+      ctx.translate(
+        this.position.center.x * proportion,
+        this.position.center.y * proportion
+      );
+      ctx.rotate((Math.PI / 180) * this.form.rotateAngle);
+
+      for (let index = 0; index < this.position.points.length; index++) {
+        const position = this.position.points[index];
+        ctx.drawImage(
+          this.form.icon,
+          position.x * proportion,
+          position.y * proportion,
+          this.iconSize.width * proportion,
+          this.iconSize.height * proportion
+        );
+      }
+
+      ctx.rotate((Math.PI / 180) * this.form.rotateAngle * -1);
+      ctx.translate(
+        this.position.center.x * proportion * -1,
+        this.position.center.y * proportion * -1
+      );
+
+      let image = canvas2Image(canvas, this.sourceFile.type);
+      downLoadImage(image, this.sourceFile.fileName);
     },
   },
   watch: {

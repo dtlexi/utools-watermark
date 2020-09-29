@@ -12,6 +12,7 @@
 </template>
 
 <script>
+
 import WaterMarkText from "@/components/components/WaterMarkText";
 import WaterMarkIcon from "@/components/components/WaterMarkIcon";
 export default {
@@ -25,7 +26,6 @@ export default {
   },
   methods: {
     resize() {
-      console.log("res");
       this.$refs.icon.reRender();
       this.$refs.text.reRender();
     },

@@ -44,7 +44,12 @@
             </Select>
           </FormItem>
           <FormItem label="字体大小">
-            <Slider v-model="form.fontSize" :max="100" :min="0"></Slider>
+            <Slider
+              v-model="form.fontSize"
+              :max="100"
+              :min="10"
+              :step="1"
+            ></Slider>
           </FormItem>
 
           <FormItem label="字体颜色">
@@ -112,7 +117,9 @@ export default {
       ctx: undefined,
       txtCanvas: undefined,
       txtCtx: undefined,
+
       sourceImage: undefined,
+      sourceTxtImage: undefined,
       form: {
         fontSize: 50,
         fontType: "Arial",
@@ -123,6 +130,7 @@ export default {
         portraitSpacing: 0,
         horizontalSpacing: 0,
         rotateAngle: 0,
+        proportion: 10,
       },
       canvasWidth: 500,
       canvasHeight: 200,
@@ -144,6 +152,10 @@ export default {
     this.txtCtx = this.txtCanvas.getContext("2d");
 
     this.canvasWidth = this.$refs.divCanvas.clientWidth - 50;
+
+    console.log(getTextWith(this.form.text, "20px Arial"));
+
+    console.log(getTextWith(this.form.text, "200px Arial"));
   },
   methods: {
     handleBeforeUpload(file) {
@@ -183,27 +195,32 @@ export default {
       this.txtCanvas.setAttributeNode(txtHeightAttr);
     },
     renderImage(image) {
-      this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
       this.ctx.drawImage(image, 0, 0, this.canvasWidth, this.canvasHeight);
     },
     renderText() {
+      if (!this.sourceImage) {
+        return false;
+      }
+
       this.txtCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-
-      this.txtCtx.font = this.font;
-
-      this.txtCtx.fillStyle = this.form.color;
-
       this.txtCtx.globalAlpha = this.form.globalAlpha / 100;
-      // 设置垂直对齐方式
-      this.txtCtx.textAlign = "left";
-      this.txtCtx.textBaseline = "top";
 
       this.txtCtx.translate(this.position.center.x, this.position.center.y);
       this.txtCtx.rotate((Math.PI / 180) * this.form.rotateAngle);
 
+      const proportion = this.sourceTxtImage.width / this.sourceTxtImage.height;
+      const txtImageWidth = this.form.fontSize;
+      const txtImageHeigh = this.form.fontSize / proportion;
+
       for (let index = 0; index < this.position.points.length; index++) {
         const position = this.position.points[index];
-        this.txtCtx.fillText(this.form.text, position.x, position.y);
+        this.txtCtx.drawImage(
+          this.sourceTxtImage,
+          position.x,
+          position.y,
+          txtImageWidth * this.form.proportion,
+          txtImageHeigh * this.form.proportion
+        );
       }
 
       this.txtCtx.rotate((Math.PI / 180) * this.form.rotateAngle * -1);
@@ -219,7 +236,7 @@ export default {
     reRender() {
       if (this.sourceImage) {
         this.canvasWidth = this.$refs.divCanvas.clientWidth - 50;
-
+        console.log(this.canvasWidth);
         this.initCanvas(this.sourceImage);
         this.renderImage(this.sourceImage);
         this.renderText();
@@ -274,96 +291,92 @@ export default {
       canvas.setAttributeNode(imageHeightAttr);
 
       let ctx = canvas.getContext("2d");
-      ctx.drawImage(this.sourceImage, 0, 0, imageWidth, imageHeight);
+      //ctx.drawImage(this.sourceImage, 0, 0, imageWidth, imageHeight);
 
-      let txtCanvas = document.createElement("canvas");
-      var imageWidthAttr = document.createAttribute("width");
-      imageWidthAttr.nodeValue = imageWidth;
+      ctx.globalCompositeOperation = "source-over";
 
-      var imageHeightAttr = document.createAttribute("height");
-      imageHeightAttr.nodeValue =imageHeight;
-      canvas.setAttributeNode(imageWidthAttr);
-      canvas.setAttributeNode(imageHeightAttr);
+      const proportion = imageWidth / this.canvasWidth;
 
+      const fontImage = this.renderText2Image();
 
-
-      let txtCtx = txtCanvas.getContext("2d");
-      const scale = imageWidth / this.canvasWidth;
-      console.log(scale)
-      txtCtx.scale(scale, scale);
-
-      txtCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-
-      txtCtx.font = this.font;
-
-      txtCtx.fillStyle = this.form.color;
-
-      txtCtx.globalAlpha = this.form.globalAlpha / 100;
-      // 设置垂直对齐方式
-      txtCtx.textAlign = "left";
-      txtCtx.textBaseline = "top";
-
-      txtCtx.translate(this.position.center.x, this.position.center.y);
-      txtCtx.rotate((Math.PI / 180) * this.form.rotateAngle);
+      ctx.translate(
+        this.position.center.x * proportion,
+        this.position.center.y * proportion
+      );
+      ctx.rotate((Math.PI / 180) * this.form.rotateAngle);
 
       for (let index = 0; index < this.position.points.length; index++) {
         const position = this.position.points[index];
-        txtCtx.fillText(this.form.text, position.x, position.y);
+        ctx.drawImage(
+          fontImage,
+          position.x * proportion,
+          position.y * proportion,
+          fontImage.width * proportion,
+          fontImage.height * proportion
+        );
+
+        console.log(
+          position.x * proportion,
+          position.y * proportion,
+          this.txtWidth * proportion,
+          this.form.fontSize * proportion
+        );
       }
 
-      txtCtx.rotate((Math.PI / 180) * this.form.rotateAngle * -1);
-      txtCtx.translate(
-        this.position.center.x * -1,
-        this.position.center.y * -1
+      ctx.rotate((Math.PI / 180) * this.form.rotateAngle * -1);
+      ctx.translate(
+        this.position.center.x * proportion * -1,
+        this.position.center.y * proportion * -1
       );
 
-      ctx.drawImage(txtCanvas,0,0);
-
-     
-
-      let image = canvas2Image(txtCanvas, this.sourceFile.type);
+      let image = canvas2Image(canvas, this.sourceFile.type);
       downLoadImage(image, this.sourceFile.fileName);
 
       this.$spin.hide();
     },
-    renderText2Image() {
-      let canvas = document.createElement("canvas");
-      var imageWidthAttr = document.createAttribute("width");
-      imageWidthAttr.nodeValue = this.txtWidth;
+    generateTxtImage() {
+      return new Promise((resolve, reject) => {
+        const font = "100px Arial";
+        const imageWidth = parseInt(getTextWith(this.form.text, font));
+        const imageHeight = 100;
 
-      var imageHeightAttr = document.createAttribute("height");
-      imageHeightAttr.nodeValue = this.form.fontSize;
-      canvas.setAttributeNode(imageWidthAttr);
-      canvas.setAttributeNode(imageHeightAttr);
+        let canvas = document.createElement("canvas");
+        var imageWidthAttr = document.createAttribute("width");
+        imageWidthAttr.nodeValue = imageWidth;
 
-      let ctx = canvas.getContext("2d");
+        var imageHeightAttr = document.createAttribute("height");
+        imageHeightAttr.nodeValue = imageHeight;
+        canvas.setAttributeNode(imageWidthAttr);
+        canvas.setAttributeNode(imageHeightAttr);
 
-      ctx.font = this.font;
-      ctx.fillStyle = this.form.color;
+        let ctx = canvas.getContext("2d");
+        ctx.font = font;
+        ctx.fillStyle = this.form.color;
+        // 设置垂直对齐方式
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
 
-      ctx.globalAlpha = this.form.globalAlpha / 100;
-      // 设置垂直对齐方式
-      ctx.textAlign = "left";
-      ctx.textBaseline = "top";
-
-      ctx.fillText(this.form.text, 0, 0);
-      let image = canvas2Image(canvas, this.sourceFile.type);
-
-      return image;
+        ctx.fillText(this.form.text, 0, 0);
+        let image = canvas2Image(canvas);
+        resolve(image);
+      });
     },
   },
   watch: {
     form: {
-      handler(val) {
-        this.renderText();
+      handler(val, oldVal) {
+        this.generateTxtImage().then((image) => {
+          this.sourceTxtImage = image;
+          this.renderText();
+        });
       },
       deep: true,
-      immediate: false,
+      immediate: true,
     },
   },
   computed: {
     font() {
-      return this.form.fontSize + "px " + this.form.fontType;
+      return this.form.fontSize / 2 + "px " + this.form.fontType;
     },
     position() {
       let points = [];
@@ -385,7 +398,7 @@ export default {
         center = { x: 0, y: this.canvasHeight / 2 };
         let pos = {
           x: this.form.portraitSpacing,
-          y: this.form.horizontalSpacing - this.form.fontSize / 2,
+          y: this.form.horizontalSpacing - this.form.fontSize / 4,
         };
         points.push(pos);
       }
@@ -396,7 +409,7 @@ export default {
 
         let pos = {
           x: this.form.portraitSpacing,
-          y: (this.form.horizontalSpacing + this.form.fontSize) * -1,
+          y: (this.form.horizontalSpacing + this.form.fontSize / 2) * -1,
         };
         points.push(pos);
       }
@@ -418,7 +431,7 @@ export default {
 
         let pos = {
           x: (this.form.portraitSpacing + this.txtWidth) * -1,
-          y: this.form.horizontalSpacing - this.form.fontSize / 2,
+          y: this.form.horizontalSpacing - this.form.fontSize / 4,
         };
         points.push(pos);
       }
@@ -429,7 +442,7 @@ export default {
 
         let pos = {
           x: (this.form.portraitSpacing + this.txtWidth) * -1,
-          y: (this.form.horizontalSpacing + this.form.fontSize) * -1,
+          y: (this.form.horizontalSpacing + this.form.fontSize / 2) * -1,
         };
         points.push(pos);
       }
@@ -452,7 +465,7 @@ export default {
 
         let pos = {
           x: this.form.portraitSpacing - this.txtWidth / 2,
-          y: this.form.horizontalSpacing - this.form.fontSize / 2,
+          y: this.form.horizontalSpacing - this.form.fontSize / 4,
         };
         points.push(pos);
       }
@@ -463,7 +476,7 @@ export default {
 
         let pos = {
           x: this.form.portraitSpacing - this.txtWidth / 2,
-          y: (this.form.horizontalSpacing + this.form.fontSize) * -1,
+          y: (this.form.horizontalSpacing + this.form.fontSize / 2) * -1,
         };
 
         points.push(pos);
@@ -487,7 +500,7 @@ export default {
             points.push({ x: posX, y: posY });
             posX += txtWidth;
           }
-          posY += txtHeight;
+          posY += txtHeight / 2;
         }
       }
 

@@ -26,7 +26,8 @@ import {
     FormItem,
     Input,
     Select,
-    Option
+    Option,
+    Notice
 } from 'iview';
 Vue.component('Button', Button);
 Vue.component('Tabs', Tabs);
@@ -48,13 +49,27 @@ Vue.component('Input', Input);
 Vue.component('Select', Select);
 Vue.component('Option', Option);
 
+Vue.prototype.$notice = Notice;
+Vue.prototype.$spin = Spin;
+
 import { Sketch } from 'vue-color'
 Vue.component('Sketch', Sketch);
 
-/* eslint-disable no-new */
-new Vue({
-    el: '#app',
-    router,
-    components: { App },
-    template: '<App/>'
-})
+try {
+    utools.onPluginReady(() => {
+        new Vue({
+            el: '#app',
+            router,
+            components: { App },
+            template: '<App/>'
+        })
+
+    });
+} catch (error) {
+    new Vue({
+        el: '#app',
+        router,
+        components: { App },
+        template: '<App/>'
+    })
+}
