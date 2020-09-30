@@ -290,7 +290,6 @@ export default {
           desc: error,
         });
       } finally {
-        this.$spin.hide();
       }
     },
     renderExportImage() {
@@ -305,13 +304,9 @@ export default {
       imageHeightAttr.nodeValue = imageHeight;
       canvas.setAttributeNode(imageWidthAttr);
       canvas.setAttributeNode(imageHeightAttr);
-
       let ctx = canvas.getContext("2d");
-      
       ctx.drawImage(this.sourceImage, 0, 0, imageWidth, imageHeight);
-
       const proportion = imageWidth / this.canvasWidth;
-
       ctx.globalAlpha = this.form.globalAlpha / 100;
 
       ctx.translate(
@@ -330,15 +325,17 @@ export default {
           this.iconSize.height * proportion
         );
       }
-
       ctx.rotate((Math.PI / 180) * this.form.rotateAngle * -1);
       ctx.translate(
         this.position.center.x * proportion * -1,
         this.position.center.y * proportion * -1
       );
-
       let image = canvas2Image(canvas, this.sourceFile.type);
       downLoadImage(image, this.sourceFile.fileName);
+      this.$spin.hide();
+      try {
+        utools.showMainWindow();
+      } catch (error) {}
     },
   },
   watch: {

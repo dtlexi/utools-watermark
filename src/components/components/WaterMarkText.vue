@@ -277,19 +277,17 @@ export default {
       ctx.drawImage(this.sourceImage, 0, 0, imageWidth, imageHeight);
 
       let txtCanvas = document.createElement("canvas");
-      var imageWidthAttr = document.createAttribute("width");
-      imageWidthAttr.nodeValue = imageWidth;
+      let txtWidthAttr = document.createAttribute("width");
+      txtWidthAttr.nodeValue = imageWidth;
 
-      var imageHeightAttr = document.createAttribute("height");
-      imageHeightAttr.nodeValue =imageHeight;
-      canvas.setAttributeNode(imageWidthAttr);
-      canvas.setAttributeNode(imageHeightAttr);
-
-
+      var txtHeightAttr = document.createAttribute("height");
+      txtHeightAttr.nodeValue = imageHeight;
+      txtCanvas.setAttributeNode(txtWidthAttr);
+      txtCanvas.setAttributeNode(txtHeightAttr);
 
       let txtCtx = txtCanvas.getContext("2d");
       const scale = imageWidth / this.canvasWidth;
-      console.log(scale)
+      console.log(scale);
       txtCtx.scale(scale, scale);
 
       txtCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
@@ -302,29 +300,24 @@ export default {
       // 设置垂直对齐方式
       txtCtx.textAlign = "left";
       txtCtx.textBaseline = "top";
-
       txtCtx.translate(this.position.center.x, this.position.center.y);
       txtCtx.rotate((Math.PI / 180) * this.form.rotateAngle);
-
       for (let index = 0; index < this.position.points.length; index++) {
         const position = this.position.points[index];
         txtCtx.fillText(this.form.text, position.x, position.y);
       }
-
       txtCtx.rotate((Math.PI / 180) * this.form.rotateAngle * -1);
       txtCtx.translate(
         this.position.center.x * -1,
         this.position.center.y * -1
       );
-
-      ctx.drawImage(txtCanvas,0,0);
-
-     
-
-      let image = canvas2Image(txtCanvas, this.sourceFile.type);
+      ctx.drawImage(txtCanvas, 0, 0);
+      let image = canvas2Image(canvas, this.sourceFile.type);
       downLoadImage(image, this.sourceFile.fileName);
-
       this.$spin.hide();
+      try {
+        utools.showMainWindow();
+      } catch (error) {}
     },
     renderText2Image() {
       let canvas = document.createElement("canvas");
