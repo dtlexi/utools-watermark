@@ -113,11 +113,6 @@
         </div>
       </Col>
     </Row>
-
-    <!-- <Spin fix v-if="showSpin">
-      <Icon type="ios-loading" size="18"></Icon>
-      <div>Loading</div>
-    </Spin> -->
   </div>
 </template>
 
